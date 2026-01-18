@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>우주 슈팅 게임</title>
+<style>
+  body { margin: 0; background: black; overflow: hidden; }
+  canvas { display: block; margin: auto; background: black; }
+</style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let gameSpeed = 1;
+
+// 🚀 플레이어
+const player = {
+  x: 180,
+  y: 520,
+  width: 40,
+  height: 40,
+  speed: 5,
+  lives: 3
+};
+
+// 미사일 크기
+const MISSILE_WIDTH = 8;
+const MISSILE_HEIGHT = 18;
+
+let bullets = [];
+let asteroids = [];
+let startTime = Date.now();
+let score = 0;
+let speedUp = false;
+
+// 키 입력
+const keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// 🔫 미사일 발사
+function shoot() {
+  bullets.push({
+    x: player.x + player.width / 2 - MISSILE_WIDTH / 2,
+    y: player.y,
+    speed: 8
+  });
+}
+
+// ☄️ 운석 생성
+function createAsteroid() {
+  asteroids.push({
+    x: Math.random() * (canvas.width - 30),
+    y: -40,
+    size: 30,
+    speed: (2 + Math.random() * 2) * gameSpeed
+  });
+}
+
+// 🔄 게임 리셋
+function resetGame() {
+  player.lives = 3;
+  player.x = 180;
+  player.y = 520;
+  bullets = [];
+  asteroids = [];
+  gameSpeed = 1;
+  speedUp = false;
+  startTime = Date.now();
+}
+
+// 🔄 업데이트
+function update() {
+  // 이동
+  if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+  if (keys["ArrowRight"] && player.x < canvas.width - player.width)
+    player.x += player.speed;
+  if (keys["ArrowUp"] && player.y > 0) player.y -= player.speed;
+
+  // 발사
+  if (keys[" "] && bullets.length < 5) shoot();
+
+  // 미사일 이동
+  bullets.forEach(b => b.y -= b.speed);
+  bullets = bullets.filter(b => b.y > 0);
+
+  // 운석 이동
+  asteroids.forEach(a => a.y += a.speed);
+  asteroids = asteroids.filter(a => a.y < canvas.height);
+
+  // 💥 미사일-운석 충돌
+  bullets.forEach((b, bi) => {
+    asteroids.forEach((a, ai) => {
+      if (
+        b.x < a.x + a.size &&
+        b.x + MISSILE_WIDTH > a.x &&
+        b.y < a.y + a.size &&
+        b.y + MISSILE_HEIGHT > a.y
+      ) {
+        bullets.splice(bi, 1);
+        asteroids.splice(ai, 1);
+      }
+    });
+  });
+
+  // 💥 플레이어-운석 충돌
+  asteroids.forEach((a, ai) => {
+    if (
+      player.x < a.x + a.size &&
+      player.x + player.width > a.x &&
+      player.y < a.y + a.size &&
+      player.y + player.height > a.y
+    ) {
+      asteroids.splice(ai, 1);
+      player.lives--;
+      if (player.lives <= 0) resetGame();
+    }
+  });
+
+  // ⏱ 점수 = 생존 시간
+  score = Math.floor((Date.now() - startTime) / 1000);
+
+  // ⚡ 10초 후 속도 증가
+  if (score >= 10 && !speedUp) {
+    gameSpeed = 1.5;
+    speedUp = true;
+  }
+}
+
+// 🎨 그리기
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 우주선
+  ctx.fillStyle = "cyan";
+  ctx.fillRect(player.x, player.y, player.width, player.height);
+
+  // 미사일
+  ctx.fillStyle = "orange";
+  bullets.forEach(b =>
+    ctx.fillRect(b.x, b.y, MISSILE_WIDTH, MISSILE_HEIGHT)
+  );
+
+  // 운석
+  ctx.fillStyle = "gray";
+  asteroids.forEach(a => {
+    ctx.beginPath();
+    ctx.arc(a.x + 15, a.y + 15, 15, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // UI
+  ctx.fillStyle = "white";
+  ctx.font = "18px Arial";
+  ctx.fillText("❤️ Lives: " + player.lives, 10, 25);
+  ctx.fillText("⏱ Score: " + score, 10, 50);
+}
+
+// 🔁 루프
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+setInterval(createAsteroid, 800);
+loop();
+</script>
+
+</body>
+</html>
